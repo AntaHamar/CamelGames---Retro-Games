@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Physics Lab: Vector Test</title>
+    <style>
+        body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        canvas { border: 4px solid #444; background: #000; box-shadow: 0 0 30px rgba(0,0,0,0.5); cursor: none; }
+        .ui { margin-bottom: 15px; text-align: center; }
+        .score { font-size: 32px; font-weight: bold; letter-spacing: 5px; }
+        .hint { color: #666; font-size: 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="ui">
+        <div class="score"><span id="pScore">0</span> — <span id="aiScore">0</span></div>
+    </div>
+
+    <canvas id="pong" width="600" height="400"></canvas>
+    
+    <div class="hint">Move Mouse to Control Paddle | Refresh to Reset Score</div>
+
+<script>
+const canvas = document.getElementById("pong");
+const ctx = canvas.getContext("2d");
+
+// Game Objects
+const ball = { x: 300, y: 200, r: 7, speed: 5, dx: 5, dy: 5 };
+const player = { x: 10, y: 160, w: 10, h: 80, score: 0 };
+const ai = { x: 580, y: 160, w: 10, h: 80, score: 0 };
+
+// Controls
+let mouseActive = false;
+window.addEventListener("mousemove", (e) => {
+    mouseActive = true;
+    let rect = canvas.getBoundingClientRect();
+    let root = document.documentElement;
+    let mouseY = e.clientY - rect.top - root.scrollTop;
+    player.y = mouseY - player.h / 2;
+});
+
+// Collision Logic (The Fix)
+function checkCollision(b, p) {
+    // Defines the boundaries of the ball and the paddle
+    let bTop = b.y - b.r;
+    let bBottom = b.y + b.r;
+    let bLeft = b.x - b.r;
+    let bRight = b.x + b.r;
+
+    let pTop = p.y;
+    let pBottom = p.y + p.h;
+    let pLeft = p.x;
+    let pRight = p.x + p.w;
+
+    return bRight > pLeft && bBottom > pTop && bLeft < pRight && bTop < pBottom;
+}
+
+function resetBall() {
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.speed = 5;
+    ball.dx = -ball.dx; // Send it to the winner
+    ball.dy = 4 * (Math.random() > 0.5 ? 1 : -1);
+}
+
+function update() {
+    // Move Ball
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    // AI Logic: The AI "drifts" toward the ball's Y position
+    // Increase 0.07 to make it harder, decrease to make it easier
+    let aiTarget = ball.y - ai.h / 2;
+    ai.y += (aiTarget - ai.y) * 0.07;
+
+    // Wall Bounce (Top/Bottom)
+    if (ball.y - ball.r < 0 || ball.y + ball.r > canvas.height) {
+        ball.dy = -ball.dy;
+    }
+
+    // Determine which paddle to check
+    let paddle = (ball.x < canvas.width / 2) ? player : ai;
+
+    if (checkCollision(ball, paddle)) {
+        // Calculate where the ball hit the paddle (-1 to 1)
+        let collidePoint = (ball.y - (paddle.y + paddle.h / 2)) / (paddle.h / 2);
+        
+        // Calculate angle (45 degrees max)
+        let angleRad = (Math.PI / 4) * collidePoint;
+        
+        // Flip direction
+        let direction = (ball.x < canvas.width / 2) ? 1 : -1;
+        
+        ball.dx = direction * ball.speed * Math.cos(angleRad);
+        ball.dy = ball.speed * Math.sin(angleRad);
+        
+        // Increase speed slightly
+        ball.speed += 0.3;
+
+        // "Push" ball out of paddle to prevent getting stuck
+        if (direction === 1) ball.x = paddle.x + paddle.w + ball.r;
+        else ball.x = paddle.x - ball.r;
+    }
+
+    // Scoring
+    if (ball.x < 0) {
+        ai.score++;
+        document.getElementById("aiScore").innerText = ai.score;
+        resetBall();
+    } else if (ball.x > canvas.width) {
+        player.score++;
+        document.getElementById("pScore").innerText = player.score;
+        resetBall();
+    }
+
+    // Keep paddles on screen
+    if (player.y < 0) player.y = 0;
+    if (player.y > canvas.height - player.h) player.y = canvas.height - player.h;
+    if (ai.y < 0) ai.y = 0;
+    if (ai.y > canvas.height - ai.h) ai.y = canvas.height - ai.h;
+}
+
+function render() {
+    // Background
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Center Line
+    ctx.strokeStyle = "#222";
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 0);
+    ctx.lineTo(canvas.width / 2, canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]); // Reset dash
+
+    // Ball
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Paddles
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    ctx.fillRect(ai.x, ai.y, ai.w, ai.h);
+}
+
+function gameLoop() {
+    update();
+    render();
+    requestAnimationFrame(gameLoop);
+}
+
+// Start the loop
+gameLoop();
+
+</script>
+</body>
+</html>
