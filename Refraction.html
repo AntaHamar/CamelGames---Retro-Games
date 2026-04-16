@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Physics Lab: Light Refraction & Reflection</title>
+    <style>
+        body { background: #1a1a1a; color: #00ffcc; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .controls { margin-bottom: 10px; text-align: center; border: 1px solid #333; padding: 15px; background: #111; width: 470px; position: relative; }
+        canvas { background: #000; border: 2px solid #333; cursor: crosshair; box-shadow: 0 0 20px rgba(0,255,204,0.1); }
+        .win-msg { color: #f1c40f; font-weight: bold; margin-top: 10px; height: 20px; }
+        .level-text { font-size: 18px; color: #00ffcc; margin-bottom: 5px; }
+        button { background: #333; color: #00ffcc; border: 1px solid #00ffcc; padding: 5px 10px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; }
+        button:hover { background: #00ffcc; color: #000; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="level-text">OPTICAL TEST: LEVEL <span id="lvlNum">1</span></div>
+        <div style="font-size: 11px; color: #888; margin-bottom: 10px;">
+            Click 1: [/] | Click 2: [\] | Click 3: [Remove]
+        </div>
+        <button onclick="resetCurrentLevel()">RESET MODULE</button>
+    </div>
+
+    <canvas id="optics" width="500" height="500"></canvas>
+    <div id="winMsg" class="win-msg"></div>
+
+<script>
+const canvas = document.getElementById("optics");
+const ctx = canvas.getContext("2d");
+const winMsg = document.getElementById("winMsg");
+const lvlNumDisplay = document.getElementById("lvlNum");
+
+const gridSize = 50;
+const cols = 10;
+const rows = 10;
+
+const levels = [
+    { tx: 8, ty: 2 }, 
+    { tx: 2, ty: 8 }, 
+    { tx: 9, ty: 5 }, 
+    { tx: 1, ty: 1 }, 
+    { tx: 5, ty: 5 },
+    { tx: 0, ty: 9 }  // Added a tricky level 6
+];
+
+let currentLevel = 0;
+let mirrors = {}; 
+let gameWon = false;
+
+function loadLevel() {
+    mirrors = {};
+    gameWon = false;
+    winMsg.innerText = "";
+    lvlNumDisplay.innerText = currentLevel + 1;
+    draw();
+}
+
+function resetCurrentLevel() {
+    loadLevel();
+}
+
+canvas.addEventListener("mousedown", (e) => {
+    // If level is won, next click proceeds to next level
+    if (gameWon && currentLevel < levels.length - 1) {
+        currentLevel++;
+        loadLevel();
+        return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / gridSize);
+    const y = Math.floor((e.clientY - rect.top) / gridSize);
+    
+    if (x < 0 || x >= cols || y < 0 || y >= rows) return;
+    if ((x === 0 && y === 2) || (x === levels[currentLevel].tx && y === levels[currentLevel].ty)) return;
+
+    let key = `${x},${y}`;
+    
+    // CYCLE LOGIC: None -> / -> \ -> None
+    if (!mirrors[key]) {
+        mirrors[key] = "/";
+    } else if (mirrors[key] === "/") {
+        mirrors[key] = "\\";
+    } else {
+        delete mirrors[key]; // REMOVE OPTION
+    }
+    
+    draw();
+});
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const target = levels[currentLevel];
+
+    // Grid
+    ctx.strokeStyle = "#111";
+    for(let i=0; i<=500; i+=gridSize) {
+        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,500); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(500,i); ctx.stroke();
+    }
+
+    // Target [X]
+    ctx.fillStyle = "#e74c3c";
+    ctx.fillRect(target.tx*gridSize+10, target.ty*gridSize+10, 30, 30);
+    ctx.fillStyle = "white";
+    ctx.font = "bold 20px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("X", target.tx*gridSize+25, target.ty*gridSize+33);
+
+    // Mirrors
+    ctx.strokeStyle = "#00ffcc";
+    ctx.lineWidth = 3;
+    for (let key in mirrors) {
+        let [x, y] = key.split(",").map(Number);
+        ctx.beginPath();
+        if (mirrors[key] === "/") {
+            ctx.moveTo(x*gridSize+8, (y+1)*gridSize-8);
+            ctx.lineTo((x+1)*gridSize-8, y*gridSize+8);
+        } else {
+            ctx.moveTo(x*gridSize+8, y*gridSize+8);
+            ctx.lineTo((x+1)*gridSize-8, (y+1)*gridSize-8);
+        }
+        ctx.stroke();
+    }
+
+    calculateLaser();
+}
+
+function calculateLaser() {
+    let currX = 0;
+    let currY = 2;
+    let dir = 'right';
+    const target = levels[currentLevel];
+    
+    ctx.strokeStyle = "#ff0000";
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "red";
+    ctx.beginPath();
+    ctx.moveTo(0, currY * gridSize + gridSize/2);
+
+    let steps = 0;
+    // Limit steps to prevent infinite loops from bad mirror setups
+    while(currX >= 0 && currX < cols && currY >= 0 && currY < rows && steps < 100) {
+        let key = `${currX},${currY}`;
+        
+        if (mirrors[key]) {
+            if (mirrors[key] === "/") {
+                if (dir === 'right') dir = 'up';
+                else if (dir === 'left') dir = 'down';
+                else if (dir === 'up') dir = 'right';
+                else if (dir === 'down') dir = 'left';
+            } else {
+                if (dir === 'right') dir = 'down';
+                else if (dir === 'left') dir = 'up';
+                else if (dir === 'up') dir = 'left';
+                else if (dir === 'down') dir = 'right';
+            }
+        }
+
+        if (dir === 'right') currX++;
+        else if (dir === 'left') currX--;
+        else if (dir === 'up') currY--;
+        else if (dir === 'down') currY++;
+
+        ctx.lineTo(currX * gridSize + gridSize/2, currY * gridSize + gridSize/2);
+        
+        if (currX === target.tx && currY === target.ty) {
+            gameWon = true;
+            winMsg.innerText = "SUCCESS: CLICK GRID TO CONTINUE";
+            break;
+        }
+        steps++;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+}
+
+loadLevel();
+</script>
+</body>
+</html>
