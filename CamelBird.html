@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Biology Study: Desert Species</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #edc9af; font-family: 'Courier New', Courier, monospace; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { border: 2px solid #a67b5b; background: #edc9af; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
+        .info { position: absolute; top: 10px; color: #5d4037; text-shadow: 1px 1px #fff; text-align: center; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h1 id="scoreDisplay">Score: 0</h1>
+        <p>Best: <span id="highScore">0</span></p>
+    </div>
+    <canvas id="flappyCamel" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("flappyCamel");
+const ctx = canvas.getContext("2d");
+const scoreDisplay = document.getElementById("scoreDisplay");
+const highScoreDisplay = document.getElementById("highScore");
+
+const gravity = 0.22;
+const jump = -4.8;
+let score = 0;
+let highScore = localStorage.getItem("camelHigh") || 0;
+highScoreDisplay.innerText = highScore;
+
+// Camel Dimensions
+let bird = { x: 50, y: 300, w: 40, h: 30, velocity: 0 };
+let pipes = [];
+let frame = 0;
+let gameOver = false;
+let gameStarted = false;
+
+function flap() {
+    if (gameOver) return resetGame();
+    if (!gameStarted) gameStarted = true;
+    bird.velocity = jump;
+}
+
+window.addEventListener("keydown", (e) => { if(e.code === "Space") flap(); });
+canvas.addEventListener("mousedown", flap);
+
+function resetGame() {
+    bird.y = 300;
+    bird.velocity = 0;
+    pipes = [];
+    score = 0;
+    frame = 0;
+    gameOver = false;
+    gameStarted = false;
+    scoreDisplay.innerText = "Score: 0";
+}
+
+function createPipe() {
+    let gap = 170;
+    let height = Math.floor(Math.random() * (canvas.height - gap - 100)) + 50;
+    pipes.push({ x: canvas.width, y: height, w: 60, gap: gap, passed: false });
+}
+
+// Drawing the Camel Pixel-Art Style
+function drawCamel(x, y) {
+    ctx.fillStyle = "#C19A6B"; // Camel Brown
+    
+    // Body (The Humps)
+    ctx.fillRect(x + 10, y + 5, 10, 10); // Hump 1
+    ctx.fillRect(x + 22, y + 5, 10, 10); // Hump 2
+    ctx.fillRect(x + 5, y + 15, 30, 10); // Main body
+    
+    // Neck and Head
+    ctx.fillRect(x + 30, y + 5, 8, 15);  // Neck
+    ctx.fillRect(x + 35, y, 10, 8);      // Head
+    
+    // Legs
+    ctx.fillRect(x + 8, y + 25, 4, 8);   // Leg 1
+    ctx.fillRect(x + 25, y + 25, 4, 8);  // Leg 2
+
+    // Eye
+    ctx.fillStyle = "black";
+    ctx.fillRect(x + 42, y + 2, 2, 2);
+}
+
+function update() {
+    if (!gameStarted || gameOver) return;
+    bird.velocity += gravity;
+    bird.y += bird.velocity;
+
+    if (bird.y + bird.h > canvas.height || bird.y < 0) gameOver = true;
+
+    if (frame % 90 === 0) createPipe();
+
+    pipes.forEach((pipe, index) => {
+        pipe.x -= 2.5;
+        if (bird.x + bird.w > pipe.x && bird.x < pipe.x + pipe.w) {
+            if (bird.y < pipe.y || bird.y + bird.h > pipe.y + pipe.gap) gameOver = true;
+        }
+        if (pipe.x + pipe.w < bird.x && !pipe.passed) {
+            score++;
+            pipe.passed = true;
+            scoreDisplay.innerText = "Score: " + score;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("camelHigh", highScore);
+                highScoreDisplay.innerText = highScore;
+            }
+        }
+        if (pipe.x + pipe.w < 0) pipes.splice(index, 1);
+    });
+    frame++;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Sand/Pipes
+    pipes.forEach(pipe => {
+        ctx.fillStyle = "#A67B5B"; // Dark Sand color for pipes
+        ctx.fillRect(pipe.x, 0, pipe.w, pipe.y);
+        ctx.fillRect(pipe.x, pipe.y + pipe.gap, pipe.w, canvas.height);
+    });
+
+    drawCamel(bird.x, bird.y);
+
+    if (!gameStarted && !gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.fillRect(0,0,canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.fillText("FLAPPY CAMEL", canvas.width/2, 280);
+        ctx.font = "14px Arial";
+        ctx.fillText("Press Space to Fly", canvas.width/2, 310);
+    }
+
+    if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0,0,canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.font = "30px Arial";
+        ctx.fillText("CAMEL CRASHED", canvas.width/2, 300);
+    }
+
+    update();
+    requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
