@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Academic Progress Tracker v1.4</title>
+    <style>
+        body { background: #f4f4f9; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: #333; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 400px; text-align: center; }
+        #clickObj { font-size: 80px; cursor: pointer; transition: transform 0.1s; user-select: none; margin: 20px 0; display: inline-block; }
+        #clickObj:active { transform: scale(0.9); }
+        .stats { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #2c3e50; }
+        .shop { text-align: left; border-top: 2px solid #eee; pt-10px; }
+        .upgrade { background: #ecf0f1; padding: 10px; margin: 10px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.3s; }
+        .upgrade:hover { background: #dde4e6; }
+        .upgrade.disabled { opacity: 0.5; cursor: not-allowed; }
+        .cost { font-weight: bold; color: #27ae60; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stats">Knowledge: <span id="points">0</span></div>
+    <div id="clickObj">📖</div>
+    <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 20px;">Click the book to study!</div>
+
+    <div class="shop">
+        <h3>Upgrades (Autoscore)</h3>
+        <div class="upgrade" onclick="buyUpgrade('coffee', 15, 1)">
+            <span>☕ Drink Coffee (+1/s)</span>
+            <span class="cost" id="cost-coffee">15</span>
+        </div>
+        <div class="upgrade" onclick="buyUpgrade('tutor', 100, 5)">
+            <span>👨‍🏫 Hire Tutor (+5/s)</span>
+            <span class="cost" id="cost-tutor">100</span>
+        </div>
+        <div class="upgrade" onclick="buyUpgrade('pc', 500, 25)">
+            <span>💻 Super Computer (+25/s)</span>
+            <span class="cost" id="cost-pc">500</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let points = 0;
+    let autoPointsPerSec = 0;
+
+    // Prices and counts
+    let upgrades = {
+        coffee: { cost: 15, power: 1, count: 0 },
+        tutor: { cost: 100, power: 5, count: 0 },
+        pc: { cost: 500, power: 25, count: 0 }
+    };
+
+    const pointsEl = document.getElementById('points');
+    const clickObj = document.getElementById('clickObj');
+
+    // Click logic
+    clickObj.onclick = () => {
+        points++;
+        updateUI();
+    };
+
+    // Purchase logic
+    function buyUpgrade(id, baseCost, power) {
+        let item = upgrades[id];
+        if (points >= item.cost) {
+            points -= item.cost;
+            item.count++;
+            autoPointsPerSec += item.power;
+            
+            // Increase price for next purchase (Exponential growth)
+            item.cost = Math.floor(baseCost * Math.pow(1.15, item.count));
+            
+            document.getElementById(`cost-${id}`).innerText = item.cost;
+            updateUI();
+        }
+    }
+
+    // Main Game Loop (Runs every second)
+    setInterval(() => {
+        points += autoPointsPerSec;
+        updateUI();
+    }, 1000);
+
+    function updateUI() {
+        pointsEl.innerText = Math.floor(points);
+        
+        // Disable buttons if you can't afford them
+        for (let id in upgrades) {
+            let btn = document.getElementById(`cost-${id}`).parentElement;
+            if (points < upgrades[id].cost) {
+                btn.classList.add('disabled');
+            } else {
+                btn.classList.remove('disabled');
+            }
+        }
+    }
+</script>
+
+</body>
+</html>
